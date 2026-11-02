@@ -25,6 +25,7 @@
     <footer>
       <span id="status">Listo</span>
       <span class="io">
+        <button id="acct-btn" title="Iniciar sesión para sincronizar entre dispositivos">Sincronizar</button>
         <button id="export" title="Descargar una copia de todos los proyectos (.json)">Exportar</button>
         <button id="import" title="Cargar proyectos desde un archivo .json">Importar</button>
         <input id="import-file" type="file" accept=".json,application/json" hidden>
@@ -72,6 +73,26 @@
 </div>
 <div id="scrim"></div>
 
+<div id="acct" hidden>
+  <div class="acct-box">
+    <h3>Sincronizar dispositivos</h3>
+    <div id="acct-out">
+      <p class="acct-help">Inicia sesión con la misma cuenta en el ordenador y en el teléfono para ver los mismos proyectos.</p>
+      <input id="acct-email" type="email" placeholder="Correo" autocomplete="email">
+      <input id="acct-pass" type="password" placeholder="Contraseña (mínimo 6 caracteres)" autocomplete="current-password">
+      <div class="acct-row"><button id="acct-in" class="primary">Entrar</button><button id="acct-new">Crear cuenta</button></div>
+      <button id="acct-reset" class="link">¿Olvidaste la contraseña?</button>
+    </div>
+    <div id="acct-inside" hidden>
+      <p>Conectado como <b id="acct-who"></b></p>
+      <p id="acct-state" class="acct-help"></p>
+      <button id="acct-signout">Cerrar sesión</button>
+    </div>
+    <p id="acct-msg"></p>
+    <button id="acct-close" class="link">Cerrar</button>
+  </div>
+</div>
+
 <div id="overlay" hidden>
   <div id="editor">
     <button id="ed-done">Listo</button>
@@ -85,6 +106,7 @@
 </div>
 
 <script src="js/db.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

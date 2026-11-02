@@ -1,7 +1,7 @@
 /* Permite abrir TramaFeral sin conexión. Sirve los archivos guardados al instante y,
    si hay internet, descarga en segundo plano la versión nueva para la próxima apertura. */
-const CACHE = 'tramaferal-v2';
-const FILES = ['./', 'index.html', 'css/styles.css', 'js/db.js', 'js/app.js', 'manifest.webmanifest',
+const CACHE = 'tramaferal-v3';
+const FILES = ['./', 'index.html', 'css/styles.css', 'js/db.js', 'js/sync.js', 'js/app.js', 'vendor/firebase.js', 'manifest.webmanifest',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

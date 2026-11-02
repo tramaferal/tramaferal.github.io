@@ -1045,12 +1045,13 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Escape') {
+    if (!acct.hidden) { acctClose(); return; }
     if (ed) { e.preventDefault(); closeEditor(); }
     else if (drag && drag.mode === 'connect') endDrag(null, true);
     else if (!isTyping()) clearSel();
     return;
   }
-  if (ed || isTyping() || !cur || (drag && drag.mode !== 'pan')) return;
+  if (ed || isTyping() || !cur || !acct.hidden || (drag && drag.mode !== 'pan')) return;
 
   if ((e.key === 'Delete' || e.key === 'Backspace') && (selected.size || selEdge)) {
     e.preventDefault();
@@ -1154,6 +1155,100 @@ $('#export').addEventListener('click', exportAll);
 $('#import').addEventListener('click', () => $('#import-file').click());
 $('#import-file').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
 
+/* =================== Sincronización (cuenta) =================== */
+const acct = $('#acct'), acctMsg = $('#acct-msg');
+const AUTH_ERR = {
+  'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+  'auth/wrong-password': 'Correo o contraseña incorrectos.',
+  'auth/user-not-found': 'No existe una cuenta con ese correo.',
+  'auth/email-already-in-use': 'Ya existe una cuenta con ese correo. Usa "Entrar".',
+  'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+  'auth/invalid-email': 'Ese correo no es válido.',
+  'auth/missing-password': 'Escribe la contraseña.',
+  'auth/network-request-failed': 'Sin conexión a internet.',
+  'auth/too-many-requests': 'Demasiados intentos. Espera unos minutos.',
+  'auth/operation-not-allowed': 'El inicio con correo no está activado en Firebase.',
+  'auth/configuration-not-found': 'El inicio con correo no está activado en Firebase.',
+};
+function acctRender() {
+  const u = TFSync.user;
+  $('#acct-out').hidden = !!u;
+  $('#acct-inside').hidden = !u;
+  if (u) $('#acct-who').textContent = u.email;
+  $('#acct-state').textContent = TFSync.status;
+  const b = $('#acct-btn');
+  b.classList.toggle('on', !!u);
+  b.textContent = u ? '☁ ' + (TFSync.status === 'Sincronizado' ? 'Sincronizado' : TFSync.status.startsWith('Sin conexión') ? 'Sin conexión' : 'Nube') : 'Sincronizar';
+  b.title = u ? u.email + ' · ' + TFSync.status : 'Iniciar sesión para sincronizar entre dispositivos';
+}
+TFSync.onChange(acctRender);
+function acctOpen() { acctMsg.textContent = ''; acctMsg.className = ''; acctRender(); acct.hidden = false; if (!TFSync.user) $('#acct-email').focus(); }
+function acctClose() { acct.hidden = true; board.focus({ preventScroll: true }); }
+async function acctDo(fn, okMsg) {
+  const email = $('#acct-email').value.trim(), pass = $('#acct-pass').value;
+  acctMsg.className = ''; acctMsg.textContent = 'Un momento…';
+  try {
+    await fn(email, pass);
+    acctMsg.className = 'ok'; acctMsg.textContent = okMsg;
+    $('#acct-pass').value = '';
+    acctRender();
+  } catch (e) {
+    console.error(e);
+    acctMsg.className = '';
+    acctMsg.textContent = AUTH_ERR[e && e.code] || 'No se pudo completar (' + ((e && e.code) || 'error') + ').';
+  }
+}
+$('#acct-btn').addEventListener('click', acctOpen);
+$('#acct-close').addEventListener('click', acctClose);
+acct.addEventListener('mousedown', (e) => { if (e.target === acct) acctClose(); });
+$('#acct-in').addEventListener('click', () => acctDo((e, p) => TFSync.signIn(e, p), 'Sesión iniciada. Sincronizando…'));
+$('#acct-new').addEventListener('click', () => acctDo((e, p) => TFSync.signUp(e, p), 'Cuenta creada. Tus proyectos se están subiendo…'));
+$('#acct-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#acct-in').click(); });
+$('#acct-reset').addEventListener('click', () => {
+  const email = $('#acct-email').value.trim();
+  if (!email) { acctMsg.className = ''; acctMsg.textContent = 'Escribe tu correo arriba y vuelve a pulsar.'; return; }
+  acctDo((e) => TFSync.reset(e), 'Te enviamos un correo para cambiar la contraseña.');
+});
+$('#acct-signout').addEventListener('click', async () => {
+  if (!confirm('¿Cerrar sesión? Tus proyectos seguirán en este dispositivo, pero dejarán de sincronizarse.')) return;
+  await TFSync.signOut();
+  acctMsg.textContent = '';
+  acctRender();
+});
+
+/* Lo que llega de otro dispositivo: se aplica sin tocar el historial de deshacer. */
+window.TF = {
+  getProjects: () => projects,
+  setProjects(list) {
+    projects = list;
+    for (const p of projects) p.subs = p.subs || [];
+    plistSig = ''; renderProjects();
+    if (!cur) return;
+    if (!projOf(cur.pid)) { if (projects.length) openBoard(projects[0].id, projects[0].id); return; }
+    renderCrumbs();
+    for (const n of cur.notes.values()) if (n.kind === 'group') paintNote(n);
+  },
+  getBoard: (bid) => (cur && cur.id === bid ? { notes: [...cur.notes.values()], edges: [...cur.edges.values()], view: cur.view } : null),
+  setBoard(bid, data) {
+    if (!cur || cur.id !== bid) return;
+    const nm = new Map(data.notes.map((n) => [n.id, n])), em = new Map(data.edges.map((e) => [e.id, e]));
+    for (const id of [...cur.edges.keys()]) if (!em.has(id)) deleteEdge(id, true);
+    for (const id of [...cur.notes.keys()]) if (!nm.has(id)) removeNoteRaw(id);
+    for (const n of nm.values()) {
+      const old = cur.notes.get(n.id);
+      if (!old) { cur.notes.set(n.id, n); addNoteEl(n); }
+      else if (JSON.stringify(old) !== JSON.stringify(n)) { Object.assign(old, n); paintNote(old); placeNote(old); }
+    }
+    for (const e of em.values()) {
+      const old = cur.edges.get(e.id);
+      if (!old) { cur.edges.set(e.id, e); addEdgeEl(e); }
+      else if (old.from !== e.from || old.to !== e.to) { Object.assign(old, e); routeEdge(old); }
+    }
+    for (const e of cur.edges.values()) routeEdge(e);
+    updateHint();
+  },
+};
+
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 /* =================== Inicio =================== */
@@ -1175,4 +1270,5 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     else await openBoard(projects[0].id, projects[0].id);
   }
   setStatus('Guardado');
+  if (location.protocol !== 'file:') TFSync.autoStart(); else $('#acct-btn').hidden = true;
 })();

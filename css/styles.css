@@ -274,3 +274,31 @@ button { font: inherit; color: inherit; }
   #colors { gap: 12px; }
   #colors button { width: 28px; height: 28px; }
 }
+
+/* ---------- Cuenta / sincronización ---------- */
+#acct { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; }
+#acct[hidden] { display: none; }
+.acct-box {
+  width: min(360px, 92vw); box-sizing: border-box; padding: 20px 22px 14px;
+  background: #1c1c1c; border: 1px solid #333; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;
+}
+.acct-box h3 { margin: 0 0 2px; font-size: 16px; font-weight: 600; }
+.acct-help { margin: 0; color: #8a8a8a; font-size: 12px; line-height: 1.5; }
+.acct-box p { margin: 0; }
+#acct-out, #acct-inside { display: flex; flex-direction: column; gap: 10px; }
+#acct-out[hidden], #acct-inside[hidden] { display: none; }
+.acct-box input {
+  background: #111; border: 1px solid #3a3a3a; border-radius: 5px; padding: 9px 10px; color: #eee;
+  font: 16px "Segoe UI", system-ui, sans-serif; outline: none;
+}
+.acct-box input:focus { border-color: var(--accent); }
+.acct-row { display: flex; gap: 8px; }
+.acct-box button { background: #2a2a2a; border: 1px solid #444; border-radius: 5px; padding: 8px 12px; cursor: pointer; color: #ddd; font-size: 13px; }
+.acct-row button { flex: 1; }
+.acct-box button.primary { background: #3a2c17; border-color: var(--accent); color: #fff; }
+.acct-box button.link { background: none; border: 0; padding: 2px; color: #888; font-size: 12px; align-self: center; }
+.acct-box button.link:hover { color: #ddd; }
+#acct-msg { font-size: 12px; color: #e5655d; min-height: 0; }
+#acct-msg:empty { display: none; }
+#acct-msg.ok { color: #5cc078; }
+#acct-btn.on { color: #5cc078; border-color: #2f5c3b; }
