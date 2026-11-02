@@ -10,10 +10,17 @@ Aparece el icono de TramaFeral y se abre a pantalla completa, también sin inter
 
 **Sin internet en el ordenador:** también puedes abrir `index.html` con doble clic.
 
-> Cada dispositivo y navegador guarda **sus propios** proyectos (todavía no hay sincronización).
-> Para pasar proyectos de un sitio a otro, o para tener copias de seguridad, usa
-> **Exportar** (descarga un `.json`) e **Importar** (abajo en el panel de proyectos).
-> Importar siempre añade proyectos; nunca borra ni reemplaza los que ya tienes.
+## Sincronizar el ordenador y el teléfono
+1. En la web, abajo en el panel de proyectos, pulsa **Sincronizar**.
+2. La primera vez pulsa **Crear cuenta** (correo y contraseña de al menos 6 caracteres). En los demás dispositivos usa **Entrar** con la misma cuenta.
+3. Listo: los cambios aparecen en el otro dispositivo en 1–2 segundos. El botón muestra **☁ Sincronizado**.
+
+- Al iniciar sesión, los proyectos que ya tenías en ese dispositivo **se suben y se combinan**; no se borra nada.
+- **Sin internet** sigues trabajando: se guarda en el dispositivo y se sube solo al volver la conexión.
+- Si dos dispositivos cambian **notas distintas** a la vez, se combinan. Si cambian **la misma nota** a la vez, queda la última.
+- Solo tu cuenta puede leer tus proyectos (reglas de seguridad de Firebase).
+- La versión abierta como archivo (`index.html` con doble clic) no sincroniza; usa la web.
+- **Exportar** sigue sirviendo como copia de seguridad.
 
 ## En el teléfono
 | Acción | Cómo |
@@ -79,5 +86,7 @@ index.html        estructura de la interfaz
 css/styles.css    estilos
 js/db.js          almacenamiento (IndexedDB; si no está disponible, localStorage)
 js/app.js         proyectos, lienzo, notas, conexiones, editor, atajos y táctil
+js/sync.js        sincronización entre dispositivos (Firebase), opcional
+vendor/firebase.js  Firebase JS SDK (Apache 2.0), incluido para funcionar sin conexión
 manifest.webmanifest, icons/, sw.js   app instalable y funcionamiento sin conexión
 ```

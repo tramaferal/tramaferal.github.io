@@ -146,8 +146,9 @@ const TFSync = (() => {
   window.addEventListener('offline', () => { if (live) setStatus('Sin conexión · se subirá al volver'); });
 
   /* ---------- recibir ---------- */
+  /* Nota: no se ignoran las instantáneas con escrituras propias pendientes. Pueden traer a la vez
+     un cambio de otro dispositivo; la combinación a tres bandas reconoce lo propio como "sin cambios". */
   async function onProjects(snap) {
-    if (snap.metadata.hasPendingWrites) return;          // es nuestro propio cambio
     const R = (snap.exists() && snap.data().p) || {};
     const K = knownProjects || (await raw.get('sync:projects')) || {};
     const L = toMap(window.TF ? window.TF.getProjects() : await raw.get('projects'));
@@ -165,7 +166,6 @@ const TFSync = (() => {
   async function onBoards(snap) {
     for (const ch of snap.docChanges()) {
       const bid = dec(ch.doc.id);
-      if (ch.doc.metadata.hasPendingWrites) continue;    // es nuestro propio cambio
       if (ch.type === 'removed') {
         if (dirty.has('board:' + bid)) continue;
         known.delete(bid);
