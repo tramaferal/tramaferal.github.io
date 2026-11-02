@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TramaFeral</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='35 30 215 215'%3E%3CclipPath id='c'%3E%3Ccircle cx='45' cy='235' r='196'/%3E%3C/clipPath%3E%3Cg clip-path='url%28%23c%29'%3E%3Crect x='45' y='39' width='200' height='73' fill='%2329a898'/%3E%3Crect x='45' y='127' width='200' height='46' fill='%23dc3c38'/%3E%3Crect x='45' y='188' width='200' height='47' fill='%23efc435'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <span class="logo">TramaFeral</span>
+      <button id="new-proj" title="Nuevo proyecto">+</button>
+    </header>
+    <ul id="plist"></ul>
+    <footer><span id="status">Listo</span></footer>
+  </aside>
+
+  <main id="board" tabindex="0">
+    <div id="world">
+      <svg id="edges" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#8c8c8c"/>
+          </marker>
+          <marker id="arrow-sel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#e3a548"/>
+          </marker>
+        </defs>
+        <path id="temp-edge" class="ln temp" d=""/>
+      </svg>
+    </div>
+    <nav id="crumbs" hidden></nav>
+    <div id="box" hidden></div>
+    <div id="empty-hint">Pulsa <b>Ctrl + S</b> para crear una nota</div>
+    <div id="toolbar">
+      <button id="fit" title="Ver todas las notas (F)">Ajustar</button>
+      <span id="zoom">100%</span>
+    </div>
+  </main>
+</div>
+
+<div id="overlay" hidden>
+  <div id="editor">
+    <input id="ed-title" placeholder="Título" autocomplete="off" spellcheck="false">
+    <textarea id="ed-body" placeholder="Escribe aquí…"></textarea>
+    <div id="ed-foot">
+      <div class="ed-left"><div id="colors"></div><span id="cat-name"></span></div>
+      <span class="hint">Título: Enter guarda · Ctrl+Enter pasa al texto — Texto: Ctrl+Enter guarda · Esc cierra</span>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
