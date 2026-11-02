@@ -10,12 +10,12 @@
 }
 
 html, body {
-  margin: 0; height: 100%; overflow: hidden;
+  margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
   background: var(--bg); color: var(--text);
   font: 13px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 button { font: inherit; color: inherit; }
-#app { display: flex; height: 100%; }
+#app { display: flex; height: 100%; height: 100dvh; }
 
 /* ---------- Panel lateral ---------- */
 #side {
@@ -189,3 +189,88 @@ button { font: inherit; color: inherit; }
 #box[hidden] { display: none; }
 .ed-left { display: flex; align-items: center; gap: 12px; }
 #cat-name { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+
+/* ---------- Exportar / importar ---------- */
+#side footer { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.io { display: flex; gap: 4px; }
+.io button {
+  background: none; border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px;
+  font-size: 10px; color: #888; cursor: pointer;
+}
+.io button:hover { color: #ddd; border-color: #555; }
+.pren { display: none; }
+
+/* ---------- Editor: botón Listo ---------- */
+#editor { position: relative; }
+#ed-done {
+  position: absolute; top: 12px; right: 14px; background: #2a2a2a; border: 1px solid #444;
+  border-radius: 4px; padding: 3px 10px; font-size: 12px; color: #ddd; cursor: pointer;
+}
+#ed-done:hover { border-color: var(--accent); }
+#ed-title { padding-right: 70px; }
+
+/* ---------- Barra táctil (oculta en ordenador) ---------- */
+#mbar, #scrim, #empty-hint .touch { display: none; }
+
+@media (pointer: coarse), (max-width: 760px) {
+  #empty-hint .desk { display: none; }
+  #empty-hint .touch { display: inline; }
+  #mbar {
+    display: flex; position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    overflow-x: auto; gap: 2px; padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(22,22,22,.96); border-top: 1px solid var(--line); scrollbar-width: none;
+  }
+  #mbar::-webkit-scrollbar { display: none; }
+  #mbar button {
+    touch-action: manipulation; flex: none; min-width: 56px; padding: 4px 6px; background: none; border: 0; border-radius: 6px;
+    color: #ddd; font-size: 18px; line-height: 1.1; display: flex; flex-direction: column; align-items: center;
+  }
+  #mbar button i { font-style: normal; font-size: 10px; color: #888; margin-top: 2px; }
+  #mbar button:active, #mbar button.on { background: #2c2c2c; }
+  #mbar button.on i { color: var(--accent); }
+  #toolbar { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  #toolbar #fit { display: none; }
+  #crumbs { top: calc(10px + env(safe-area-inset-top)); }
+  #crumbs em { display: none; }
+  #crumbs button, #crumbs span { font-size: 14px; padding: 4px 2px; }
+  #board { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+  /* Notas más fáciles de tocar */
+  .port { width: 20px; height: 20px; border-width: 3px; }
+  .port[data-side="r"] { right: -11px; top: calc(50% - 10px); }
+  .port[data-side="l"] { left: -11px;  top: calc(50% - 10px); }
+  .port[data-side="t"] { top: -11px;   left: calc(50% - 10px); }
+  .port[data-side="b"] { bottom: -11px; left: calc(50% - 10px); }
+  .note:hover .port { opacity: 0; }
+  .note.sel .port, #board.connecting .port { opacity: 1; }
+  .rs-br { width: 26px; height: 26px; right: -10px; bottom: -10px; }
+  .note.sel .rs-br { background: linear-gradient(135deg, transparent 50%, #777 50%); border-radius: 0 0 6px 0; }
+  #edges .hit { stroke-width: 28; }
+  .g-open { padding: 6px 12px; font-size: 13px; }
+
+  /* Panel de proyectos como menú desplegable */
+  #side {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 20; width: min(300px, 84vw);
+    transform: translateX(-100%); padding-top: env(safe-area-inset-top);
+  }
+  body.drawer #side { transform: none; }
+  body.drawer #scrim { display: block; position: fixed; inset: 0; z-index: 19; background: rgba(0,0,0,.5); }
+  #plist li { padding: 11px 10px; font-size: 15px; }
+  #plist li.sub { font-size: 14px; }
+  .pdel, .pren { visibility: visible; display: block; width: 30px; height: 30px; font-size: 14px; }
+  .pren { background: none; border: 0; color: #777; }
+  .pren::before { content: "✎"; }
+  .io button { font-size: 12px; padding: 5px 9px; }
+
+  /* Editor a pantalla completa */
+  #editor {
+    width: 100vw; height: 100%; height: 100dvh; border-radius: 0; border: 0;
+    padding: calc(18px + env(safe-area-inset-top)) 18px calc(12px + env(safe-area-inset-bottom));
+  }
+  #ed-done { top: calc(14px + env(safe-area-inset-top)); right: 14px; font-size: 15px; padding: 6px 14px; }
+  #ed-title { font-size: 24px; }
+  #ed-body { font-size: 16px; }   /* 16px evita que el iPhone haga zoom al escribir */
+  #ed-foot .hint { display: none; }
+  #colors { gap: 12px; }
+  #colors button { width: 28px; height: 28px; }
+}

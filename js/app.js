@@ -115,7 +115,7 @@ let plistSig = '';
 function renderProjects() {
   // Si solo cambió cuál está abierto, no se redibuja (así el doble clic para renombrar no se pierde).
   const sig = JSON.stringify(projects.map((p) => [p.id, p.name, (p.subs || []).filter((s) => !s.gone).map((s) => [s.id, s.parent, s.name])]));
-  if (sig === plistSig && !plist.querySelector('input')) {
+  if (sig === plistSig || plist.querySelector('input')) {   // nunca redibujar mientras se renombra
     for (const li of plist.children) li.classList.toggle('active', !!cur && li.dataset.bid === cur.id);
     return;
   }
@@ -123,7 +123,7 @@ function renderProjects() {
   plist.textContent = '';
   for (const p of projects) {
     const li = document.createElement('li');
-    li.innerHTML = '<span></span><button class="pdel" title="Borrar proyecto"></button>';
+    li.innerHTML = '<span></span><button class="pren" title="Renombrar"></button><button class="pdel" title="Borrar proyecto"></button>';
     li.firstChild.textContent = p.name;
     li.dataset.pid = p.id; li.dataset.bid = p.id;
     li.title = p.name + ' (doble clic para renombrar)';
@@ -134,7 +134,7 @@ function renderProjects() {
         const sl = document.createElement('li');
         sl.className = 'sub' + (cur && cur.id === s.id ? ' active' : '');
         sl.style.paddingLeft = (10 + depth * 14) + 'px';
-        sl.innerHTML = '<span></span>';
+        sl.innerHTML = '<span></span><button class="pren" title="Renombrar"></button>';
         sl.firstChild.textContent = '▣ ' + s.name;
         sl.dataset.pid = p.id; sl.dataset.bid = s.id;
         sl.title = s.name + ' (doble clic para renombrar)';
@@ -150,10 +150,12 @@ plist.addEventListener('click', (e) => {
   const li = e.target.closest('li');
   if (!li || !li.dataset.pid) return;
   if (e.target.classList.contains('pdel')) { deleteProject(li.dataset.pid); return; }
+  if (e.target.classList.contains('pren')) { renameItem(li); return; }
+  document.body.classList.remove('drawer');
   if (!cur || cur.id !== li.dataset.bid) openBoard(li.dataset.pid, li.dataset.bid);
 });
 plist.addEventListener('dblclick', (e) => {
-  if (e.target.classList.contains('pdel')) return;
+  if (e.target.tagName === 'BUTTON') return;
   const li = e.target.closest('li');
   if (li && li.dataset.pid) renameItem(li);
 });
@@ -189,7 +191,7 @@ function renameItem(li) {
       if (!isSub) { p.name = v; saveProjects(); }
       else await renameGroup(pid, s, v);
     }
-    plistSig = ''; renderProjects(); renderCrumbs();
+    inp.remove(); plistSig = ''; renderProjects(); renderCrumbs();
   };
   inp.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') finish(true);
@@ -255,7 +257,7 @@ async function openBoard(pid, bid, focusNoteBoard) {
     if (g) selectOnly(g.id);
   }
   queueSave('last', () => ({ pid, bid }));
-  board.focus();
+  if (!isTyping()) board.focus();       // no quitarle el foco a un nombre que se está escribiendo
 }
 const openProject = (pid) => openBoard(pid, pid);
 
@@ -712,10 +714,36 @@ board.addEventListener('pointermove', (e) => { mouse = boardPoint(e); });
 board.addEventListener('pointerleave', () => { mouse = null; });
 board.addEventListener('contextmenu', (e) => e.preventDefault());
 
+/* ---- Táctil: dedos activos, pellizco, doble toque, mantener pulsado ---- */
+const touches = new Map();
+let multi = false;          // modo "Varios" (equivale a mantener Ctrl)
+let lastTap = null, pressTimer = null;
+const isTouch = (e) => e.pointerType === 'touch' || e.pointerType === 'pen';
+
+function setMulti(on) {
+  multi = on;
+  $('#multi-btn').classList.toggle('on', on);
+  $('#multi-btn').firstChild.textContent = on ? '☑' : '☐';
+}
+
+function startPinch() {
+  const [a, b] = [...touches.values()];
+  if (drag && drag.mode !== 'pinch') endDrag(null, true);
+  clearTimeout(pressTimer);
+  drag = { mode: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+    m0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, v0: { ...cur.view } };
+}
+
 board.addEventListener('pointerdown', (e) => {
-  if (!cur || drag) return;
+  if (!cur || e.target.closest('#mbar, #toolbar, #crumbs')) return;   // botones encima del lienzo
+  if (isTouch(e)) {
+    touches.set(e.pointerId, boardPoint(e));
+    if (touches.size === 2) { startPinch(); return; }
+    if (touches.size > 2) return;
+  }
+  if (drag) return;
   board.focus({ preventScroll: true });
-  const p = boardPoint(e), mod = e.ctrlKey || e.metaKey;
+  const p = boardPoint(e), mod = e.ctrlKey || e.metaKey || multi;
   const onNote = e.target.closest('.note'), onEdge = e.target.closest('.edge');
 
   if (e.button === 0 && !onNote && !onEdge && mod) {   // Ctrl + arrastrar en vacío: selección por área
@@ -740,7 +768,7 @@ board.addEventListener('pointerdown', (e) => {
 
   const n = cur.notes.get(onNote.dataset.id);
   if (e.target.classList.contains('g-open')) { enterGroup(n); return; }
-  if (mod && n.kind === 'group') { e.preventDefault(); selectOnly(n.id); setTimeout(() => openEditor(n)); return; } // Ctrl + clic en super nodo: editar nombre y texto
+  if (mod && n.kind === 'group' && !multi) { e.preventDefault(); selectOnly(n.id); setTimeout(() => openEditor(n)); return; } // Ctrl + clic en super nodo: editar nombre y texto
   if (mod) { toggleSel(n.id); return; }                // Ctrl + clic: sumar / quitar de la selección
   if (!selected.has(n.id)) selectOnly(n.id);
 
@@ -753,7 +781,17 @@ board.addEventListener('pointerdown', (e) => {
     drag = { mode: 'resize', n, rs: e.target.dataset.rs, sx: p.x, sy: p.y, w: n.w, h: n.h, moved: false, snap: snap() };
   } else {
     const items = [...selected].map((id) => { const m = cur.notes.get(id); return { n: m, x: m.x, y: m.y }; });
-    drag = { mode: 'move', n, items, ids: new Set(selected), sx: p.x, sy: p.y, moved: false, dropEdge: null, snap: snap() };
+    drag = { mode: 'move', n, items, ids: new Set(selected), sx: p.x, sy: p.y, moved: false, dropEdge: null, snap: snap(),
+      touch: isTouch(e), t0: Date.now() };
+    if (isTouch(e)) {                                   // mantener pulsado: modo "Varios" y seleccionar
+      const d = drag;
+      pressTimer = setTimeout(() => {
+        if (drag !== d || d.moved) return;
+        drag = null;
+        setMulti(true);
+        addSel(n.id);
+      }, 550);
+    }
   }
 });
 
@@ -779,8 +817,20 @@ function setDropEdge(id) {
 }
 
 window.addEventListener('pointermove', (e) => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, boardPoint(e));
   if (!drag) return;
   const p = boardPoint(e), z = cur.view.z;
+  if (drag.mode === 'pinch') {
+    if (touches.size < 2) return;
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y), m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const nz = Math.min(ZMAX, Math.max(ZMIN, drag.v0.z * d / drag.d0));
+    const w = { x: (drag.m0.x - drag.v0.x) / drag.v0.z, y: (drag.m0.y - drag.v0.y) / drag.v0.z };
+    cur.view.z = nz; cur.view.x = m.x - w.x * nz; cur.view.y = m.y - w.y * nz;
+    applyView();
+    return;
+  }
+  if (drag.mode === 'move' && !drag.moved && Math.hypot(p.x - drag.sx, p.y - drag.sy) > 6) clearTimeout(pressTimer);
   if (drag.mode === 'pan') {
     cur.view.x = drag.vx + p.x - drag.sx;
     cur.view.y = drag.vy + p.y - drag.sy;
@@ -845,7 +895,15 @@ window.addEventListener('pointermove', (e) => {
   }
 });
 
-window.addEventListener('pointerup', endDrag);
+function pointerEnd(e, cancel) {
+  clearTimeout(pressTimer);
+  const wasPinch = drag && drag.mode === 'pinch';
+  touches.delete(e.pointerId);
+  if (wasPinch) { if (touches.size < 2) { drag = null; viewChanged(); } return; }
+  endDrag(e, cancel);
+}
+window.addEventListener('pointerup', (e) => pointerEnd(e, false));
+window.addEventListener('pointercancel', (e) => pointerEnd(e, true));
 window.addEventListener('blur', () => endDrag(null, true));
 
 function endDrag(e, cancel) {
@@ -857,6 +915,10 @@ function endDrag(e, cancel) {
   else if (d.mode === 'resize' && d.moved) saveBoard();
   else if (d.mode === 'move' && !d.moved && !cancel && d.n.kind === 'group' && e && e.button === 0) {
     enterGroup(d.n);                                   // clic (sin arrastrar) en un super nodo: entrar
+  } else if (d.mode === 'move' && !d.moved && !cancel && d.touch && Date.now() - d.t0 < 300) {
+    const now = Date.now();                            // doble toque en una nota: editar
+    if (lastTap && lastTap.id === d.n.id && now - lastTap.t < 400) { lastTap = null; selectOnly(d.n.id); openEditor(d.n); }
+    else lastTap = { id: d.n.id, t: now };
   } else if (d.mode === 'move' && d.moved) {
     if (d.dropEdge && edgeEls.get(d.dropEdge)) {
       edgeEls.get(d.dropEdge).classList.remove('drop');
@@ -903,6 +965,7 @@ function markColor(c) {
 }
 
 function openEditor(note, selectTitle) {
+  if (ed) return;
   ed = note
     ? { id: note.id, isNew: false, color: note.color || CATS[0].bg, snap: snap() }
     : { id: null, isNew: true, pos: newNotePos(), color: CATS[0].bg, snap: snap(),
@@ -1016,6 +1079,82 @@ window.addEventListener('keydown', (e) => {
     fitAll();
   }
 });
+
+/* =================== Barra táctil =================== */
+/* Se actúa al levantar el dedo (más fiable que "click" en táctil); si el dedo se desliza, es para desplazar la barra. */
+let mbarDown = null;
+$('#mbar').addEventListener('pointerdown', (e) => { mbarDown = { b: e.target.closest('button'), x: e.clientX, y: e.clientY }; });
+$('#mbar').addEventListener('pointerup', (e) => {
+  const d = mbarDown; mbarDown = null;
+  const b = e.target.closest('button');
+  if (!d || d.b !== b || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) return;
+  mbarAction(b);
+});
+function mbarAction(b) {
+  if (!b || !cur || ed) return;
+  const one = selOne();
+  switch (b.dataset.a) {
+    case 'menu': document.body.classList.toggle('drawer'); break;
+    case 'note': openEditor(null); break;
+    case 'edit': if (one) openEditor(cur.notes.get(one)); break;
+    case 'multi': setMulti(!multi); break;
+    case 'undo': undo(); break;
+    case 'redo': redo(); break;
+    case 'cut': if (selected.size) { copySelection(); deleteSelection(false); } break;
+    case 'copy': copySelection(); break;
+    case 'paste': if (clip) pasteClip(); break;
+    case 'group': groupSelected(); setMulti(false); break;
+    case 'up': goUp(); break;
+    case 'del': if (selEdge) { checkpoint(); deleteEdge(selEdge); } else deleteSelection(true); break;
+    case 'fit': fitAll(); break;
+  }
+}
+$('#scrim').addEventListener('click', () => document.body.classList.remove('drawer'));
+$('#ed-done').addEventListener('click', () => closeEditor());
+
+/* =================== Exportar / importar =================== */
+async function exportAll() {
+  await flush();
+  const boards = {};
+  for (const k of await TFDB.keys()) if (k.startsWith('board:')) boards[k] = await TFDB.get(k);
+  const data = { app: 'TramaFeral', version: 1, exportedAt: new Date().toISOString(), projects, boards };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'TramaFeral-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* Añade los proyectos del archivo como proyectos nuevos (nunca reemplaza los existentes). */
+async function importFile(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch (e) { data = null; }
+  if (!data || data.app !== 'TramaFeral' || !Array.isArray(data.projects)) { alert('Ese archivo no es una copia de TramaFeral.'); return; }
+  await flush();
+  let n = 0;
+  for (const p of data.projects) {
+    const oldId = p.id, newId = uid();
+    // Todos los ids de tableros de un proyecto empiezan por su id: se cambian de una vez.
+    const remap = (obj) => JSON.parse(JSON.stringify(obj).split(oldId).join(newId));
+    for (const [k, v] of Object.entries(data.boards || {})) {
+      if (k === 'board:' + oldId || k.startsWith('board:' + oldId + '/')) await TFDB.set(remap(k), remap(v));
+    }
+    const np = remap(p);
+    np.subs = np.subs || [];
+    if (projects.some((x) => x.name === np.name)) np.name += ' (importado)';
+    projects.push(np);
+    n++;
+  }
+  saveProjects(); await flush();
+  plistSig = ''; renderProjects();
+  alert(n === 1 ? 'Se importó 1 proyecto.' : `Se importaron ${n} proyectos.`);
+}
+$('#export').addEventListener('click', exportAll);
+$('#import').addEventListener('click', () => $('#import-file').click());
+$('#import-file').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) importFile(f); });
+
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 /* =================== Inicio =================== */
 (async function start() {
